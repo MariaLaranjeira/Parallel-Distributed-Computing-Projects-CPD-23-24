@@ -68,7 +68,6 @@ void OnMult(int m_ar, int m_br)
     free(phb);
     free(phc);
 	
-	
 }
 
 // add code here for line x line matriz multiplication
@@ -98,17 +97,15 @@ void OnMultLine(int m_ar, int m_br)
     	Time1 = clock();
 
     for(i=0; i<m_ar; i++)
-    {    for( j=0; j<m_ar; j++ )
-        {		for( k=0; k<m_br; k++)
-            {    
+        for( j=0; j<m_ar; j++ )
+        	for( k=0; k<m_br; k++)
                 phc[i*m_ar + k] += pha[i*m_ar + j] * phb[j*m_br + k];
-            }
-        }
-    }
+            
 
-    	Time2 = clock();
+    Time2 = clock();
     sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
     cout << st;
+
 
     // display 10 elements of the result matrix tto verify correctness
     cout << "Result matrix: " << endl;
@@ -118,9 +115,9 @@ void OnMultLine(int m_ar, int m_br)
     }
     cout << endl;
 
-    	free(pha);
-    	free(phb);
-			free(phc);
+    free(pha);
+    free(phb);
+	free(phc);
 }
 
 // add code here for block x block matriz multiplication
@@ -150,43 +147,17 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 
 	Time1 = clock();
 	
-	// block x block matriz multiplication using OnMult multiplication logic
 
-	for (int bi = 0; bi < m_ar; bi += bkSize)
-	{
-		for (int bj = 0; bj < m_ar; bj += bkSize)
-		{
-			for (int bk = 0; bk < m_ar; bk += bkSize)
-			{
-				for (int i = 0; i < bkSize; i++)
-				{
-					for (int j = 0; j < bkSize; j++)
-					{
-						for (int k = 0; k < bkSize; k++)
-						{
-							phc[(bi + i) * m_ar + (bj + j)] += pha[(bi + i) * m_ar + (bk + k)] * phb[(bk + k) * m_br + (bj + j)];
-						}
-					}
-				}
-			}
-		}
-	}
-
+	for (int i0 = 0; i0 < m_ar; i0 += bkSize)
+		for (int j0 = 0; j0 < m_ar; j0 += bkSize)
+				for (int x = 0; x < m_ar; x++)
+					for (int j = j0; j < min(j0 + bkSize, m_ar); j++)
+						for (int i = i0; i < min(i0 + bkSize, m_ar); i++)
+							phc[x*m_ar + i] += pha[x*m_ar + j] * phb[j*m_br + i];
+					
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
 	cout << st;		
-
-	cout << "Matrix A:" << endl;
-	for (i=0; i<9; i++){
-	    cout << pha[i] << " ";
-	}
-	cout << endl;
-	
-	cout << "Matriz B" << endl;
-	for (i=0; i<9; i++){
-	    cout << phb[i] << " ";
-	}
-	cout << endl;
 
 	cout << "Result matrix: " << endl;
 	for(i=0; i<1; i++)
@@ -195,14 +166,11 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 	}
 	cout << endl;		
 
-
     free(pha);
     free(phb);
     free(phc);
     
-    
 }
-
 
 
 void handle_error (int retval)
@@ -284,7 +252,6 @@ int main (int argc, char *argv[])
 				cin >> blockSize;
 				OnMultBlock(lin, col, blockSize);  
 				break;
-
 		}
 
   		ret = PAPI_stop(EventSet, values);
