@@ -82,7 +82,7 @@ void OnMultLine(int m_ar, int m_br)
 
     double *pha, *phb, *phc;
     
-    	pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
     phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
     phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
 
@@ -149,18 +149,28 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 			phb[i*m_br + j] = (double)(i+1);	
 
 	Time1 = clock();
+	
+	// block x block matriz multiplication using OnMult multiplication logic
 
-	for (int i0 = 0; i0 < m_ar; i0 += bkSize)
-		for (int j0 = 0; j0 < m_ar; j0 += bkSize)
-			for (int k0 = 0; k0 < m_ar; k0 += bkSize)
-				for (int i = i0; i < min(i0 + bkSize, m_ar); i++)
-					for (int j = j0; j < min(j0 + bkSize, m_ar); j++)
+	for (int bi = 0; bi < m_ar; bi += bkSize)
+	{
+		for (int bj = 0; bj < m_ar; bj += bkSize)
+		{
+			for (int bk = 0; bk < m_ar; bk += bkSize)
+			{
+				for (int i = 0; i < bkSize; i++)
+				{
+					for (int j = 0; j < bkSize; j++)
 					{
-						double temp = 0;
-						for (int k = k0; k < min(k0 + bkSize, m_ar); k++)
-							temp += pha[i * m_ar + k] * phb[k * m_br + j];
-						phc[i * m_ar + j] += temp;
+						for (int k = 0; k < bkSize; k++)
+						{
+							phc[(bi + i) * m_ar + (bj + j)] += pha[(bi + i) * m_ar + (bk + k)] * phb[(bk + k) * m_br + (bj + j)];
+						}
 					}
+				}
+			}
+		}
+	}
 
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
