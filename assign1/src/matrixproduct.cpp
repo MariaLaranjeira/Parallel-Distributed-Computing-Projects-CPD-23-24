@@ -76,7 +76,7 @@ void OnMultLine(int m_ar, int m_br)
     SYSTEMTIME Time1, Time2;
     
     char st[100];
-		double temp;
+	double temp;
     int i, j, k;
 
     double *pha, *phb, *phc;
@@ -146,14 +146,13 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 			phb[i*m_br + j] = (double)(i+1);	
 
 	Time1 = clock();
-	
 
 	for (int i0 = 0; i0 < m_ar; i0 += bkSize)
 		for (int j0 = 0; j0 < m_ar; j0 += bkSize)
-				for (int x = 0; x < m_ar; x++)
-					for (int j = j0; j < min(j0 + bkSize, m_ar); j++)
-						for (int i = i0; i < min(i0 + bkSize, m_ar); i++)
-							phc[x*m_ar + i] += pha[x*m_ar + j] * phb[j*m_br + i];
+			for (int x = 0; x < m_ar; x++)
+				for (int j = j0; j < min(j0 + bkSize, m_ar); j++)
+					for (int i = i0; i < min(i0 + bkSize, m_ar); i++)
+						phc[x*m_ar + i] += pha[x*m_ar + j] * phb[j*m_br + i];
 					
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
@@ -223,8 +222,9 @@ int main (int argc, char *argv[])
 
 
 	op=1;
-	do {
-		cout << endl << "1. Multiplication" << endl;
+	do { 
+		cout << endl << "=========- C++ Program -=========" << endl;
+		cout << "1. Multiplication" << endl;
 		cout << "2. Line Multiplication" << endl;
 		cout << "3. Block Multiplication" << endl;
 		cout << "Selection?: ";
@@ -265,7 +265,7 @@ int main (int argc, char *argv[])
 
 
 
-	}while (op != 0);
+	} while (op != 0);
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
 	if ( ret != PAPI_OK )
