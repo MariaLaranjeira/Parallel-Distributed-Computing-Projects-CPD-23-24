@@ -131,6 +131,7 @@ class MatrixProduct {
             System.out.println("1. Multiplication");
             System.out.println("2. Line Multiplication");
             System.out.println("3. Block Multiplication");
+            System.out.println("0. Exit");
             System.out.print("Selection?: ");
             op = scanner.nextInt();
 
