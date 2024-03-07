@@ -227,6 +227,7 @@ int main (int argc, char *argv[])
 		cout << "1. Multiplication" << endl;
 		cout << "2. Line Multiplication" << endl;
 		cout << "3. Block Multiplication" << endl;
+		cout << "0. Exit" << endl;
 		cout << "Selection?: ";
 		cin >>op;
 		if (op == 0)
