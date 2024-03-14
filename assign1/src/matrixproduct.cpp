@@ -4,6 +4,7 @@
 #include <time.h>
 #include <cstdlib>
 #include <papi.h>
+#include <omp.h>
 
 using namespace std;
 
@@ -68,7 +69,6 @@ void OnMult(int m_ar, int m_br)
     free(phb);
     free(phc);
 	
-	
 }
 
 // add code here for line x line matriz multiplication
@@ -77,7 +77,7 @@ void OnMultLine(int m_ar, int m_br)
     SYSTEMTIME Time1, Time2;
     
     char st[100];
-		double temp;
+	double temp;
     int i, j, k;
 
     double *pha, *phb, *phc;
@@ -98,17 +98,15 @@ void OnMultLine(int m_ar, int m_br)
     	Time1 = clock();
 
     for(i=0; i<m_ar; i++)
-    {    for( j=0; j<m_ar; j++ )
-        {		for( k=0; k<m_br; k++)
-            {    
+        for( j=0; j<m_ar; j++ )
+        	for( k=0; k<m_br; k++)
                 phc[i*m_ar + k] += pha[i*m_ar + j] * phb[j*m_br + k];
-            }
-        }
-    }
+            
 
-    	Time2 = clock();
+    Time2 = clock();
     sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
     cout << st;
+
 
     // display 10 elements of the result matrix tto verify correctness
     cout << "Result matrix: " << endl;
@@ -118,9 +116,60 @@ void OnMultLine(int m_ar, int m_br)
     }
     cout << endl;
 
-    	free(pha);
-    	free(phb);
-			free(phc);
+    free(pha);
+    free(phb);
+	free(phc);
+}
+
+// add code here for line x line matriz multiplication
+void OnMultLineCores(int m_ar, int m_br)
+{
+    double Time1, Time2;
+    
+    char st[100];
+	double temp;
+    int i, j, k;
+
+    double *pha, *phb, *phc;
+    
+    pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+
+    for(i=0; i<m_ar; i++)
+        for(j=0; j<m_ar; j++)
+            pha[i*m_ar + j] = (double)1.0;
+
+    for(i=0; i<m_br; i++)
+        for(j=0; j<m_br; j++)
+            phb[i*m_br + j] = (double)(i+1);
+
+
+    Time1 = omp_get_wtime();
+
+	#pragma omp parallel for private(i, j, k) shared(pha, phb, phc)
+    for(i=0; i<m_ar; i++)
+        for( j=0; j<m_ar; j++ )
+        	for( k=0; k<m_br; k++)
+                phc[i*m_ar + k] += pha[i*m_ar + j] * phb[j*m_br + k];
+            
+
+    Time2 =  omp_get_wtime();
+    sprintf(st, "Time: %3.3f seconds\n", Time2 - Time1);
+    cout << st;
+
+
+    // display 10 elements of the result matrix tto verify correctness
+    cout << "Result matrix: " << endl;
+    for(i=0; i<1; i++)
+    {    for(j=0; j<min(10,m_br); j++)
+            cout << phc[j] << " ";
+    }
+    cout << endl;
+
+    free(pha);
+    free(phb);
+	free(phc);
 }
 
 // add code here for block x block matriz multiplication
@@ -149,43 +198,17 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 			phb[i*m_br + j] = (double)(i+1);	
 
 	Time1 = clock();
-	
 
-	for (int bi = 0; bi < m_ar; bi += bkSize)
-	{
-		for (int bj = 0; bj < m_ar; bj += bkSize)
-		{
-			for (int bk = 0; bk < m_ar; bk += bkSize)
-			{
-				for (int i = 0; i < bkSize; i++)
-				{
-					for (int j = 0; j < bkSize; j++)
-					{
-						for (int k = 0; k < bkSize; k++)
-						{
-							phc[(bi + i) * m_ar + (bj + j)] += pha[(bi + i) * m_ar + (bk + k)] * phb[(bk + k) * m_br + (bj + j)];
-						}
-					}
-				}
-			}
-		}
-	}
-
+	for (int i0 = 0; i0 < m_ar; i0 += bkSize)
+		for (int j0 = 0; j0 < m_ar; j0 += bkSize)
+			for (int x = 0; x < m_ar; x++)
+				for (int j = j0; j < min(j0 + bkSize, m_ar); j++)
+					for (int i = i0; i < min(i0 + bkSize, m_ar); i++)
+						phc[x*m_ar + i] += pha[x*m_ar + j] * phb[j*m_br + i];
+					
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
 	cout << st;		
-
-	cout << "Matrix A:" << endl;
-	for (i=0; i<9; i++){
-	    cout << pha[i] << " ";
-	}
-	cout << endl;
-	
-	cout << "Matriz B" << endl;
-	for (i=0; i<9; i++){
-	    cout << phb[i] << " ";
-	}
-	cout << endl;
 
 	cout << "Result matrix: " << endl;
 	for(i=0; i<1; i++)
@@ -194,14 +217,11 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 	}
 	cout << endl;		
 
-
     free(pha);
     free(phb);
     free(phc);
     
-    
 }
-
 
 
 void handle_error (int retval)
@@ -254,10 +274,13 @@ int main (int argc, char *argv[])
 
 
 	op=1;
-	do {
-		cout << endl << "1. Multiplication" << endl;
+	do { 
+		cout << endl << "=========- C++ Program -=========" << endl;
+		cout << "1. Multiplication" << endl;
 		cout << "2. Line Multiplication" << endl;
 		cout << "3. Block Multiplication" << endl;
+		cout << "4. Parallel Line Multiplication" << endl;
+		cout << "0. Exit" << endl;
 		cout << "Selection?: ";
 		cin >>op;
 		if (op == 0)
@@ -283,7 +306,9 @@ int main (int argc, char *argv[])
 				cin >> blockSize;
 				OnMultBlock(lin, col, blockSize);  
 				break;
-
+			case 4:
+				OnMultLineCores(lin, col);  
+				break;		
 		}
 
   		ret = PAPI_stop(EventSet, values);
@@ -297,7 +322,7 @@ int main (int argc, char *argv[])
 
 
 
-	}while (op != 0);
+	} while (op != 0);
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
 	if ( ret != PAPI_OK )
