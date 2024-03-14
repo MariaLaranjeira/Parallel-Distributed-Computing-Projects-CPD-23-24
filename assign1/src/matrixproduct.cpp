@@ -150,7 +150,6 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 
 	Time1 = clock();
 	
-	// block x block matriz multiplication using OnMult multiplication logic
 
 	for (int bi = 0; bi < m_ar; bi += bkSize)
 	{
