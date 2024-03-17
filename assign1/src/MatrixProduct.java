@@ -11,7 +11,7 @@ class MatrixProduct {
         double[] pha = new double[m_ar*m_ar];
         double[] phb = new double[m_br*m_br];
         double[] phc = new double[m_ar*m_ar];
-        int temp;
+        double temp;
         int i;
         int j;
         int k;
@@ -99,8 +99,9 @@ class MatrixProduct {
             e.printStackTrace();
         }
 
-        int onMultValues[7] = {600, 1000, 1400, 1800, 2200, 2600, 3000};
+        int[] onMultValues = {600, 1000, 1400, 1800, 2200, 2600, 3000,4096};
         
+         
         for (int i = 0; i < 7; i++) {
             try {
                 valuesFile.write("Java," + "OnMult," + onMultValues[i] + ",N/A");
@@ -125,9 +126,9 @@ class MatrixProduct {
                 e.printStackTrace();
             }
         }
-
-
-        for (int i = 0; i < 2; i++) {
+        
+        
+        for (int i = 7; i < 8; i++) {
 
             try {
                 valuesFile.write("Java," + "OnMultLine," + onMultValues[i] + ",N/A");
@@ -159,44 +160,6 @@ class MatrixProduct {
             System.out.println("An error occurred closing the file.");
             e.printStackTrace();
         }    
-
-
-        /* 
-        do {
-            System.out.println();
-            System.out.println("=========- Java Program -=========");
-            System.out.println("1. Multiplication");
-            System.out.println("2. Line Multiplication");
-            System.out.println("3. Block Multiplication");
-            System.out.println("0. Exit");
-            System.out.print("Selection?: ");
-            op = scanner.nextInt();
-
-            if (op == 0)
-                break;
-
-            System.out.print("Dimensions: lins=cols ? ");
-            lin = scanner.nextInt();
-            col = lin;
-
-            switch (op) {
-                case 1:
-                    onMult(lin, col);
-                    break;
-                case 2:
-                    onMultLine(lin, col);
-                    break;
-                case 3:
-                    System.out.print("Block Size? ");
-                    blockSize = scanner.nextInt();
-                    onMultBlock(lin, col, blockSize);
-                    break;
-            }
-        } while (op != 0);
-
-        */
     }
-
-
 }
 
