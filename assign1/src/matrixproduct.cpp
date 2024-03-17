@@ -11,7 +11,7 @@ using namespace std;
 
 #define SYSTEMTIME clock_t
 
- 
+// Naive Matrix Multiplication Algorithm 
 double OnMult(int m_ar, int m_br) 
 {
 	
@@ -63,6 +63,7 @@ double OnMult(int m_ar, int m_br)
 	
 }
 
+// Line Matrix Multiplication Algorithm
 double OnMultLine(int m_ar, int m_br)
 {
     SYSTEMTIME Time1, Time2;
@@ -104,6 +105,7 @@ double OnMultLine(int m_ar, int m_br)
 
 }
 
+// Outer Parallelization of Line Matrix Multiplication Algorithm
 double OnMultLineCores(int m_ar, int m_br)
 {
     double Time1, Time2;
@@ -145,6 +147,7 @@ double OnMultLineCores(int m_ar, int m_br)
 	return res;
 }
 
+// Outer and Inner Parallelization of Line Matrix Multiplication Algorithm
 double OnMultLineCores2(int m_ar, int m_br)
 {
     double Time1, Time2;
@@ -187,6 +190,7 @@ double OnMultLineCores2(int m_ar, int m_br)
 	return res;
 }
 
+// Block Multiplication Algorithm
 double OnMultBlock(int m_ar, int m_br, int bkSize)
 {
     

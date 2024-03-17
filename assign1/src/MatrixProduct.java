@@ -6,6 +6,7 @@ class MatrixProduct {
 
     static FileWriter valuesFile;
 
+    // Naive Matrix Multiplication Algorithm
     private static double onMult(int m_ar, int m_br) {
 
         double[] pha = new double[m_ar*m_ar];
@@ -47,6 +48,7 @@ class MatrixProduct {
 
     }
 
+    // Line Matrix Multiplication Algorithm
     private static double onMultLine(int m_ar, int m_br) {
 
         double[] pha = new double[m_ar*m_ar];
