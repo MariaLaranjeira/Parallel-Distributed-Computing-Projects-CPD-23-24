@@ -4,7 +4,6 @@ import java.net.*;
 public class Client {
     private String serverAddress;
     private int serverPort;
-    private int serverPort;
 
     public Client(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
