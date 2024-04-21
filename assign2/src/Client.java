@@ -4,6 +4,7 @@ import java.net.*;
 public class Client {
     private String serverAddress;
     private int serverPort;
+    private int serverPort;
 
     public Client(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
@@ -11,23 +12,28 @@ public class Client {
     }
 
     public void startClient() throws IOException {
-        Socket socket = new Socket(serverAddress, serverPort);
-        System.out.println("Connected to the game server");
+        try (Socket socket = new Socket(serverAddress, serverPort)) {
+            socket.setSoTimeout(5000);  // Match the server's timeout
 
-        // Authentication and communication with server
-        OutputStream output = socket.getOutputStream();
-        PrintWriter writer = new PrintWriter(output, true);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-        // Example authentication
-        writer.println("USERNAME:PASSWORD");
+            // Send token if it exists, otherwise signal a new connection
+            out.println((token != null) ? token : "NEW");
 
-        // Handle game logic and communication from server
-        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        String message;
-        while ((message = reader.readLine()) != null) {
-            System.out.println("Server says: " + message);
+            // Read the token assigned by the server or the updated one
+            token = in.readLine();
+            System.out.println("Connected with token: " + token);
+
+            // Continue with other communication
+            String fromServer;
+            while ((fromServer = in.readLine()) != null) {
+                System.out.println("Server: " + fromServer);
+                // Include logic to handle game states and server messages
+            }
+        } catch (IOException e) {
+            System.out.println("Error communicating with the server: " + e.getMessage());
         }
-        socket.close();
     }
 
     public static void main(String[] args) throws IOException {
