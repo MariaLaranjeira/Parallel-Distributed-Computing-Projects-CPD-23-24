@@ -1,9 +1,11 @@
-import java.io.*;
+package org.example;
+
 import java.net.*;
+import java.io.*;
 
 public class Client {
-    private String serverAddress;
-    private int serverPort;
+    private String serverAddress; //Hostname
+    private int serverPort; //Port
 
     public Client(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
@@ -28,15 +30,25 @@ public class Client {
             String fromServer;
             while ((fromServer = in.readLine()) != null) {
                 System.out.println("Server: " + fromServer);
-                // Include logic to handle game states and server messages
+                // !Include logic to handle game states and server messages
             }
-        } catch (IOException e) {
-            System.out.println("Error communicating with the server: " + e.getMessage());
+
+        } catch (UnknownHostException ex) {
+
+            System.out.println("Server not found: " + ex.getMessage());
+
+        } catch (IOException ex) {
+
+            System.out.println("I/O error: " + ex.getMessage());
         }
     }
 
     public static void main(String[] args) throws IOException {
-        GameClient client = new GameClient("localhost", 12345);
+        if (args.length < 2) return;
+        String hostname = args[0];
+        int port = Integer.parseInt(args[1]);
+
+        Client client = new Client(hostname, port);
         client.startClient();
     }
 }

@@ -1,5 +1,8 @@
+package org.example;
+
 import java.io.*;
 import java.net.*;
+import java.util.Date;
 import java.util.*;
 import java.util.concurrent.locks.*;
 
@@ -16,21 +19,26 @@ public class Server {
         this.port = port;
         this.playersPerGame = playersPerGame;
         this.isRankMode = isRankMode;
+
         this.playersQueue = new LinkedList<>();
         this.tokenMap = new HashMap<>();
     }
 
     public void startServer() throws IOException {
-        ServerSocket serverSocket = new ServerSocket(port);
-        System.out.println("Server started on port " + port);
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Server is listening on port " + port);
 
-        while (true) {
-            Socket clientSocket = serverSocket.accept();
-            // Set a timeout to avoid slow clients blocking the server
-            clientSocket.setSoTimeout(5000); // Timeout after 5000 milliseconds of inactivity
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                // Set a timeout to avoid slow clients blocking the server
+                clientSocket.setSoTimeout(5000); // Timeout after 5000 milliseconds of inactivity
 
-            // Use virtual threads (lightweight threads introduced in Java SE 21)
-            Thread.startVirtualThread(() -> handleClient(clientSocket));
+                // Use virtual threads (lightweight threads introduced in Java SE 21)
+                Thread.startVirtualThread(() -> handleClient(clientSocket));
+            }
+        } catch (IOException ex) {
+            System.out.println("Server exception: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
@@ -119,10 +127,11 @@ public class Server {
 
 
     public static void main(String[] args) throws IOException {
-        int port = 12345;
-        boolean isRankMode = args.length > 0 && args[0].equals("rank");
-        int playersPerGame = args.length > 1 ? Integer.parseInt(args[1]) : 2; // Default to 2 if not specified
-        GameServer server = new GameServer(port, playersPerGame, isRankMode);
+        if (args.length < 1) return;
+        int port = Integer.parseInt(args[0]);
+        boolean isRankMode = args[1].equals("rank");
+        int playersPerGame = Integer.parseInt(args[2]);
+        Server server = new Server(port, playersPerGame, isRankMode);
         server.startServer();
     }
 }

@@ -1,3 +1,5 @@
+package org.example;
+
 import java.net.Socket;
 import java.util.List;
 
@@ -16,6 +18,6 @@ public class Game implements Runnable {
     public void start() {
         // Code to start the game
         System.out.println("Starting game with " + userSockets.size() + " players");
-        // Game logic here
+        /*!!! Game logic here */
     }
 }
