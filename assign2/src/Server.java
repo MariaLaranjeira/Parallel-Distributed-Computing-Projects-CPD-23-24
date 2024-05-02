@@ -1,5 +1,3 @@
-package org.example;
-
 import java.io.*;
 import java.net.*;
 import java.util.Date;
@@ -8,34 +6,42 @@ import java.util.concurrent.locks.*;
 
 public class Server {
     private int port;
-    private Queue<Player> playersQueue;
-    private Map<String, Player> tokenMap;
-    private Lock queueLock = new ReentrantLock();
-    private Lock tokenLock = new ReentrantLock();
-    private int playersPerGame;
     private boolean isRankMode;
+    private int playersPerGame;
+
+    private Queue<Client> playersQueue;
+
+    private Map<String, Client> tokenMap;
+
+    private Lock queueLock;
+    private Lock tokenLock;
+
+    private final int TIMEOUT = 10000; // to avoid slow clients
 
     public Server(int port, int playersPerGame, boolean isRankMode) {
         this.port = port;
-        this.playersPerGame = playersPerGame;
         this.isRankMode = isRankMode;
 
         this.playersQueue = new LinkedList<>();
+
         this.tokenMap = new HashMap<>();
+
+        this.queueLock = new ReentrantLock();
+        this.tokenLock = new ReentrantLock();
     }
 
     public void startServer() throws IOException {
+        //Start Server in port
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Server is listening on port " + port);
+            System.out.println("Server is listening on port " + port + " with " + (isRankMode? "rank" : "simple") + "mode");
 
+            //Start new connections thread
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                // Set a timeout to avoid slow clients blocking the server
-                clientSocket.setSoTimeout(5000); // Timeout after 5000 milliseconds of inactivity
-
-                // Use virtual threads (lightweight threads introduced in Java SE 21)
+                clientSocket.setSoTimeout(TIMEOUT);
                 Thread.startVirtualThread(() -> handleClient(clientSocket));
             }
+
         } catch (IOException ex) {
             System.out.println("Server exception: " + ex.getMessage());
             ex.printStackTrace();
@@ -46,8 +52,8 @@ public class Server {
     private void handleClient(Socket clientSocket) {
         try {
             System.out.println("New connection received: " + clientSocket.getInetAddress());
+            Client newPlayer = authenticate(clientSocket);
 
-            Player newPlayer = authenticate(clientSocket);
             if (newPlayer != null) {
                 if (isRankMode) {
                     performRankedMatchmaking(newPlayer);
@@ -57,6 +63,7 @@ public class Server {
             } else {
                 clientSocket.close();
             }
+
         } catch (IOException e) {
             System.out.println("Error handling client socket: " + e.getMessage());
             try {
@@ -67,21 +74,25 @@ public class Server {
         }
     }
 
-    private Player authenticate(Socket clientSocket) throws IOException {
+    private Client authenticate(Socket clientSocket) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
 
         String token = reader.readLine();
+
         tokenLock.lock();
         try {
             if (token != null && tokenMap.containsKey(token)) {
-                return tokenMap.get(token);  // Reconnected player
+                return tokenMap.get(token);  
             } else {
-                // New authentication logic here, return new player with generated token
-                Player newPlayer = new Player(clientSocket, 0); // Assume level 0 for simplicity
+                Client newPlayer = new Client(clientSocket); 
+
                 token = UUID.randomUUID().toString();
+
                 tokenMap.put(token, newPlayer);
-                writer.println(token); // Send token back to client
+
+                writer.println(token);
+
                 return newPlayer;
             }
         } finally {
@@ -89,24 +100,32 @@ public class Server {
         }
     }
 
-    private void startGame(List<Player> players) {
+    private void startGame(List<Client> players) {
         List<Socket> sockets = new ArrayList<>();
-        for (Player player : players) {
+
+        for (Client player : players) {
             sockets.add(player.getSocket());
         }
+
         Game game = new Game(sockets);
+
         new Thread(game).start();
     }
 
-    private void performSimpleMatchmaking(Player player) {
+    private void performSimpleMatchmaking(Client player) {
         queueLock.lock();
         try {
             playersQueue.add(player);
+
+            //verify if all members are ready
             if (playersQueue.size() >= playersPerGame) {
-                List<Player> players = new ArrayList<>();
+                List<Client> players = new ArrayList<>();
                 for (int i = 0; i < playersPerGame; i++) {
                     players.add(playersQueue.poll());
+                    System.out.println("PLayer removed from waiting queue");
                 }
+
+                //Start the game
                 startGame(players);
             }
         } finally {
@@ -114,11 +133,9 @@ public class Server {
         }
     }
 
-    private void performRankedMatchmaking(Player newPlayer) {
+    private void performRankedMatchmaking(Client newPlayer) {
         queueLock.lock();
         try {
-            // Implement matchmaking logic that accounts for player levels
-            // This is a simple placeholder for actual rank-based logic
             playersQueue.add(newPlayer);
         } finally {
             queueLock.unlock();
@@ -127,11 +144,24 @@ public class Server {
 
 
     public static void main(String[] args) throws IOException {
-        if (args.length < 1) return;
+        //args: port numberPlayers mode  
+        if (args.length != 3) return;
+
+        //Create a Server Object
         int port = Integer.parseInt(args[0]);
-        boolean isRankMode = args[1].equals("rank");
-        int playersPerGame = Integer.parseInt(args[2]);
+
+        int playersPerGame = Integer.parseInt(args[1]);
+        
+        String mode = args[2];
+        boolean isRankMode;
+
+        if(mode.equals("rank") && mode.equals("simple") ){
+            isRankMode = mode.equals("rank");
+        }
+        else return;
+
         Server server = new Server(port, playersPerGame, isRankMode);
+
         server.startServer();
     }
 }

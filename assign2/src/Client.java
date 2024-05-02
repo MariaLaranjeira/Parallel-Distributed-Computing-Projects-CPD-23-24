@@ -1,19 +1,20 @@
-package org.example;
-
 import java.net.*;
 import java.io.*;
 
 public class Client {
-    private String serverAddress; //Hostname
-    private int serverPort; //Port
-
-    public Client(String serverAddress, int serverPort) {
-        this.serverAddress = serverAddress;
-        this.serverPort = serverPort;
+    private final Socket clientSocket;
+    private int serverPort; 
+    private String hostname; 
+    private String token;
+    
+    public Client(Socket clientSocket) {
+        this.clientSocket = clientSocket;
     }
 
     public void startClient() throws IOException {
-        try (Socket socket = new Socket(serverAddress, serverPort)) {
+        try (Socket socket = new Socket(hostname, serverPort)) {
+            System.out.println("Starting client on port: " + serverPort);
+
             socket.setSoTimeout(5000);  // Match the server's timeout
 
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
@@ -43,12 +44,8 @@ public class Client {
         }
     }
 
-    public static void main(String[] args) throws IOException {
-        if (args.length < 2) return;
-        String hostname = args[0];
-        int port = Integer.parseInt(args[1]);
-
-        Client client = new Client(hostname, port);
-        client.startClient();
+    public Socket getSocket(){
+        return this.clientSocket;
     }
+
 }
