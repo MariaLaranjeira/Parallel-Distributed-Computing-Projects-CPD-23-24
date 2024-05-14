@@ -1,13 +1,18 @@
 import java.util.Scanner;
+import java.io.FileWriter;   
+import java.io.IOException;  
 
 class MatrixProduct {
 
-    private static void onMult(int m_ar, int m_br) {
+    static FileWriter valuesFile;
+
+    // Naive Matrix Multiplication Algorithm
+    private static double onMult(int m_ar, int m_br) {
 
         double[] pha = new double[m_ar*m_ar];
         double[] phb = new double[m_br*m_br];
         double[] phc = new double[m_ar*m_ar];
-        int temp;
+        double temp;
         int i;
         int j;
         int k;
@@ -39,11 +44,12 @@ class MatrixProduct {
 
         long endTime = System.nanoTime();
         long duration = (endTime - startTime);
-        System.out.println("Time: " + duration/1000000000.0);
+        return duration/1000000000.0;
 
     }
 
-    private static void onMultLine(int m_ar, int m_br) {
+    // Line Matrix Multiplication Algorithm
+    private static double onMultLine(int m_ar, int m_br) {
 
         double[] pha = new double[m_ar*m_ar];
         double[] phb = new double[m_br*m_br];
@@ -76,45 +82,7 @@ class MatrixProduct {
         
         long endTime = System.nanoTime();
         long duration = (endTime - startTime);
-        System.out.println("Time: " + duration/1000000000.0);
-
-    }
-
-    private static void onMultBlock(int m_ar, int m_br, int bkSize) {
-
-        double[] pha = new double[m_ar*m_ar];
-        double[] phb = new double[m_br*m_br];
-        double[] phc = new double[m_ar*m_ar];
-
-        for(int i = 0; i < m_ar; i++) {
-            for(int j  =0; j < m_ar; j++) {
-                pha[i*m_ar + j] = 1.0;
-            }    
-        }
-        
-        for(int i = 0; i < m_br; i++) {
-            for(int j  =0; j < m_br; j++) {
-                phb[i*m_br + j] = i+1;
-            }    
-        }
-
-        long startTime = System.nanoTime();
-
-        for (int i0 = 0; i0 < m_ar; i0 += bkSize) {
-		    for (int j0 = 0; j0 < m_ar; j0 += bkSize) {
-			    for (int x = 0; x < m_ar; x++) {
-				    for (int j = j0; j < Math.min(j0 + bkSize, m_ar); j++) {
-					    for (int i = i0; i < Math.min(i0 + bkSize, m_ar); i++) {
-						    phc[x*m_ar + i] += pha[x*m_ar + j] * phb[j*m_br + i];
-                        }        
-                    }        
-                }            
-            }                
-        }
-        
-        long endTime = System.nanoTime();
-        long duration = (endTime - startTime);
-        System.out.println("Time: " + duration/1000000000.0);
+        return duration/1000000000.0;
 
     }
 
@@ -124,40 +92,76 @@ class MatrixProduct {
         Scanner scanner = new Scanner(System.in);
         int op = 1;
         int lin, col, blockSize;
+        int sizeDiv;
 
-        do {
-            System.out.println();
-            System.out.println("=========- Java Program -=========");
-            System.out.println("1. Multiplication");
-            System.out.println("2. Line Multiplication");
-            System.out.println("3. Block Multiplication");
-            System.out.println("0. Exit");
-            System.out.print("Selection?: ");
-            op = scanner.nextInt();
+        try {
+             valuesFile = new FileWriter("valuesFile.csv", true);
+        } catch (IOException e){
+            System.out.println("An error occurred opening the file.");
+            e.printStackTrace();
+        }
 
-            if (op == 0)
-                break;
-
-            System.out.print("Dimensions: lins=cols ? ");
-            lin = scanner.nextInt();
-            col = lin;
-
-            switch (op) {
-                case 1:
-                    onMult(lin, col);
-                    break;
-                case 2:
-                    onMultLine(lin, col);
-                    break;
-                case 3:
-                    System.out.print("Block Size? ");
-                    blockSize = scanner.nextInt();
-                    onMultBlock(lin, col, blockSize);
-                    break;
+        int[] onMultValues = {600, 1000, 1400, 1800, 2200, 2600, 3000,4096};
+        
+         
+        for (int i = 0; i < 7; i++) {
+            try {
+                valuesFile.write("Java," + "OnMult," + onMultValues[i] + ",N/A");
+            } catch (IOException e){
+                System.out.println("An error occurred writing to the file.");
+                e.printStackTrace();
             }
-        } while (op != 0);
+
+            for (int j = 0; j < 5; j++) {
+                try {
+                    valuesFile.write("," + onMult(onMultValues[i], onMultValues[i])+",N/A"+ ",N/A");
+                } catch (IOException e){
+                    System.out.println("An error occurred writing to the file.");
+                    e.printStackTrace();
+                }
+            }
+
+            try {
+                valuesFile.write("\n");
+            } catch (IOException e){
+                System.out.println("An error occurred writing to the file.");
+                e.printStackTrace();
+            }
+        }
+        
+        
+        for (int i = 7; i < 8; i++) {
+
+            try {
+                valuesFile.write("Java," + "OnMultLine," + onMultValues[i] + ",N/A");
+            } catch (IOException e){
+                System.out.println("An error occurred writing to the file.");
+                e.printStackTrace();
+            }  
+            for (int j = 0; j < 5; j++) {
+                try {
+                    valuesFile.write("," + onMultLine(onMultValues[i], onMultValues[i]) + ",N/A"+ ",N/A");
+                } catch (IOException e){
+                    System.out.println("An error occurred writing to the file.");
+                    e.printStackTrace();
+                }
+            }
+
+            try {
+                valuesFile.write("\n");
+            } catch (IOException e){
+                System.out.println("An error occurred writing to the file.");
+                e.printStackTrace();
+            }
+    
+        }
+
+        try {
+            valuesFile.close();
+        } catch (IOException e){
+            System.out.println("An error occurred closing the file.");
+            e.printStackTrace();
+        }    
     }
-
-
 }
 

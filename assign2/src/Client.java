@@ -1,0 +1,51 @@
+import java.net.*;
+import java.io.*;
+
+public class Client {
+    private final Socket clientSocket;
+    private int serverPort; 
+    private String hostname; 
+    private String token;
+    
+    public Client(Socket clientSocket) {
+        this.clientSocket = clientSocket;
+    }
+
+    public void startClient() throws IOException {
+        try (Socket socket = new Socket(hostname, serverPort)) {
+            System.out.println("Starting client on port: " + serverPort);
+
+            socket.setSoTimeout(5000);  // Match the server's timeout
+
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            // Send token if it exists, otherwise signal a new connection
+            out.println((token != null) ? token : "NEW");
+
+            // Read the token assigned by the server or the updated one
+            token = in.readLine();
+            System.out.println("Connected with token: " + token);
+
+            // Continue with other communication
+            String fromServer;
+            while ((fromServer = in.readLine()) != null) {
+                System.out.println("Server: " + fromServer);
+                // !Include logic to handle game states and server messages
+            }
+
+        } catch (UnknownHostException ex) {
+
+            System.out.println("Server not found: " + ex.getMessage());
+
+        } catch (IOException ex) {
+
+            System.out.println("I/O error: " + ex.getMessage());
+        }
+    }
+
+    public Socket getSocket(){
+        return this.clientSocket;
+    }
+
+}

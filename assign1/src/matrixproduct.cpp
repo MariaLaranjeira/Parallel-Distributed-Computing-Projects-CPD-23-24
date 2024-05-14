@@ -5,24 +5,23 @@
 #include <cstdlib>
 #include <papi.h>
 #include <omp.h>
+#include <fstream>
 
 using namespace std;
 
 #define SYSTEMTIME clock_t
 
- 
-void OnMult(int m_ar, int m_br) 
+// Naive Matrix Multiplication Algorithm 
+double OnMult(int m_ar, int m_br) 
 {
 	
 	SYSTEMTIME Time1, Time2;
 	
-	char st[100];
 	double temp;
 	int i, j, k;
 
 	double *pha, *phb, *phc;
 	
-
 		
     pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
 	phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
@@ -54,29 +53,21 @@ void OnMult(int m_ar, int m_br)
 
 
     Time2 = clock();
-	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
-	cout << st;
-
-	// display 10 elements of the result matrix tto verify correctness
-	cout << "Result matrix: " << endl;
-	for(i=0; i<1; i++)
-	{	for(j=0; j<min(10,m_br); j++)
-			cout << phc[j] << " ";
-	}
-	cout << endl;
+	double res = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
 
     free(pha);
     free(phb);
     free(phc);
+
+	return res;
 	
 }
 
-// add code here for line x line matriz multiplication
-void OnMultLine(int m_ar, int m_br)
+// Line Matrix Multiplication Algorithm
+double OnMultLine(int m_ar, int m_br)
 {
     SYSTEMTIME Time1, Time2;
     
-    char st[100];
 	double temp;
     int i, j, k;
 
@@ -95,7 +86,7 @@ void OnMultLine(int m_ar, int m_br)
             phb[i*m_br + j] = (double)(i+1);
 
 
-    	Time1 = clock();
+    Time1 = clock();
 
     for(i=0; i<m_ar; i++)
         for( j=0; j<m_ar; j++ )
@@ -104,29 +95,21 @@ void OnMultLine(int m_ar, int m_br)
             
 
     Time2 = clock();
-    sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
-    cout << st;
-
-
-    // display 10 elements of the result matrix tto verify correctness
-    cout << "Result matrix: " << endl;
-    for(i=0; i<1; i++)
-    {    for(j=0; j<min(10,m_br); j++)
-            cout << phc[j] << " ";
-    }
-    cout << endl;
+	double res = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
 
     free(pha);
     free(phb);
 	free(phc);
+
+	return res;
+
 }
 
-// add code here for line x line matriz multiplication
-void OnMultLineCores(int m_ar, int m_br)
+// Outer Parallelization of Line Matrix Multiplication Algorithm
+double OnMultLineCores(int m_ar, int m_br)
 {
     double Time1, Time2;
     
-    char st[100];
 	double temp;
     int i, j, k;
 
@@ -155,30 +138,64 @@ void OnMultLineCores(int m_ar, int m_br)
             
 
     Time2 =  omp_get_wtime();
-    sprintf(st, "Time: %3.3f seconds\n", Time2 - Time1);
-    cout << st;
-
-
-    // display 10 elements of the result matrix tto verify correctness
-    cout << "Result matrix: " << endl;
-    for(i=0; i<1; i++)
-    {    for(j=0; j<min(10,m_br); j++)
-            cout << phc[j] << " ";
-    }
-    cout << endl;
+	double res = (double)(Time2 - Time1);
 
     free(pha);
     free(phb);
 	free(phc);
+
+	return res;
 }
 
-// add code here for block x block matriz multiplication
-void OnMultBlock(int m_ar, int m_br, int bkSize)
+// Outer and Inner Parallelization of Line Matrix Multiplication Algorithm
+double OnMultLineCores2(int m_ar, int m_br)
+{
+    double Time1, Time2;
+    
+	double temp;
+    int i, j, k;
+
+    double *pha, *phb, *phc;
+    
+    pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+
+    for(i=0; i<m_ar; i++)
+        for(j=0; j<m_ar; j++)
+            pha[i*m_ar + j] = (double)1.0;
+
+    for(i=0; i<m_br; i++)
+        for(j=0; j<m_br; j++)
+            phb[i*m_br + j] = (double)(i+1);
+
+
+    Time1 = omp_get_wtime();
+
+	#pragma omp parallel for private(i, j, k) shared(pha, phb, phc)
+    for(i=0; i<m_ar; i++)
+        for( j=0; j<m_ar; j++ )
+			#pragma omp parallel for
+        	for( k=0; k<m_br; k++)
+                phc[i*m_ar + k] += pha[i*m_ar + j] * phb[j*m_br + k];
+            
+
+    Time2 =  omp_get_wtime();
+	double res = (double)(Time2 - Time1);
+
+    free(pha);
+    free(phb);
+	free(phc);
+
+	return res;
+}
+
+// Block Multiplication Algorithm
+double OnMultBlock(int m_ar, int m_br, int bkSize)
 {
     
     SYSTEMTIME Time1, Time2;
 	
-	char st[100];
 	double temp;
 	int i, j, k;
 
@@ -207,22 +224,15 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 						phc[x*m_ar + i] += pha[x*m_ar + j] * phb[j*m_br + i];
 					
 	Time2 = clock();
-	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
-	cout << st;		
-
-	cout << "Result matrix: " << endl;
-	for(i=0; i<1; i++)
-	{	for(j=0; j<min(10,m_br); j++)
-			cout << phc[j] << " ";
-	}
-	cout << endl;		
+	double res = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
 
     free(pha);
     free(phb);
     free(phc);
+
+	return res;
     
 }
-
 
 void handle_error (int retval)
 {
@@ -254,6 +264,9 @@ int main (int argc, char *argv[])
 	int EventSet = PAPI_NULL;
   	long long values[2];
   	int ret;
+	int sizeDiv;
+
+	ofstream valuesFile;
 	
 
 	ret = PAPI_library_init( PAPI_VER_CURRENT );
@@ -272,57 +285,91 @@ int main (int argc, char *argv[])
 	ret = PAPI_add_event(EventSet,PAPI_L2_DCM);
 	if (ret != PAPI_OK) cout << "ERROR: PAPI_L2_DCM" << endl;
 
+	int onMultValues[7] = {600, 1000, 1400, 1800, 2200, 2600, 3000};
+	int onMultOptValues[11] = {600, 1000, 1400, 1800, 2200, 2600, 3000, 4096, 6144, 8192, 10240};
 
-	op=1;
-	do { 
-		cout << endl << "=========- C++ Program -=========" << endl;
-		cout << "1. Multiplication" << endl;
-		cout << "2. Line Multiplication" << endl;
-		cout << "3. Block Multiplication" << endl;
-		cout << "4. Parallel Line Multiplication" << endl;
-		cout << "0. Exit" << endl;
-		cout << "Selection?: ";
-		cin >>op;
-		if (op == 0)
-			break;
-		printf("Dimensions: lins=cols ? ");
-   		cin >> lin;
-   		col = lin;
+	valuesFile.open("valuesFile.csv");
+	valuesFile << "Programming Language," << "Algorithm Name," << "Matrix Size," << "Block Size," << "Run 1," << "Run 1 L1," << "Run 1 L2," << "Run 2," << "Run 2 L1," << "Run 2 L2," << "Run 3," << "Run 3 L1," << "Run 3 L2," << "Run 4," << "Run 4 L1," << "Run 4 L2," << "Run 5," << "Run 5 L1," << "Run 5 L2" << endl;
+	
+	for (int i = 0; i < 7; i++) {
+		valuesFile << "C++," << "OnMult," << onMultValues[i] << ",N/A";
 
+		for (int j = 0; j < 5; j++) {
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+			valuesFile << "," << OnMult(onMultValues[i], onMultValues[i]);
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+			valuesFile << "," << values[0] << "," << values[1];
 
-		// Start counting
-		ret = PAPI_start(EventSet);
-		if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-
-		switch (op){
-			case 1: 
-				OnMult(lin, col);
-				break;
-			case 2:
-				OnMultLine(lin, col);  
-				break;
-			case 3:
-				cout << "Block Size? ";
-				cin >> blockSize;
-				OnMultBlock(lin, col, blockSize);  
-				break;
-			case 4:
-				OnMultLineCores(lin, col);  
-				break;		
 		}
+		valuesFile << endl;
 
-  		ret = PAPI_stop(EventSet, values);
-  		if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
-  		printf("L1 DCM: %lld \n",values[0]);
-  		printf("L2 DCM: %lld \n",values[1]);
+	}
+	
 
-		ret = PAPI_reset( EventSet );
-		if ( ret != PAPI_OK )
-			std::cout << "FAIL reset" << endl; 
+	for (int i = 0; i < 11; i++) {
 
+		
+		valuesFile << "C++," << "OnMultLine," << onMultOptValues[i] << ",N/A";
+		for (int j = 0; j < 5; j++) {
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+			valuesFile << "," << OnMultLine(onMultOptValues[i], onMultOptValues[i]);
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+			valuesFile << "," << values[0] << "," << values[1];
+		}
+		valuesFile << endl;
 
+		valuesFile << "C++," << "OnMultLineCores," << onMultOptValues[i] << ",N/A";
+		for (int j = 0; j < 5; j++) {
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+			valuesFile << "," << OnMultLineCores(onMultOptValues[i], onMultOptValues[i]);
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+			valuesFile << "," << values[0] << "," << values[1];
+		}
+		valuesFile << endl;
+		
 
-	} while (op != 0);
+		valuesFile << "C++," << "OnMultLineCores2," << onMultOptValues[i] << ",N/A";
+		for (int j = 0; j < 5; j++) {
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+			valuesFile << "," << OnMultLineCores2(onMultOptValues[i], onMultOptValues[i]);
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+			valuesFile << "," << values[0] << "," << values[1];
+		}
+		valuesFile << endl;
+
+		
+		sizeDiv = 8;
+		for (int k = 0; k < 3; k++) {
+			valuesFile << "C++," << "OnMultBlock," << onMultOptValues[i];
+			valuesFile << "," << onMultOptValues[i]/sizeDiv;
+
+			for (int j = 0; j < 5; j++) {
+				ret = PAPI_start(EventSet);
+				if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+				valuesFile << "," << OnMultBlock(onMultOptValues[i], onMultOptValues[i], onMultOptValues[i]/sizeDiv );
+				ret = PAPI_stop(EventSet, values);
+				if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+				valuesFile << "," << values[0] << "," << values[1];
+			}
+			sizeDiv /= 2;
+			valuesFile << endl;
+		}
+	}
+	
+	valuesFile.close();
+
+	ret = PAPI_reset( EventSet );
+	if ( ret != PAPI_OK )
+		std::cout << "FAIL reset" << endl; 
+
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
 	if ( ret != PAPI_OK )
