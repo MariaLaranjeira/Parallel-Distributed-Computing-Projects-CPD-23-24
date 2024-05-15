@@ -1,6 +1,5 @@
 import java.io.*;
 import java.net.*;
-import java.util.Date;
 import java.util.*;
 import java.util.concurrent.locks.*;
 
@@ -33,7 +32,7 @@ public class Server {
     public void startServer() throws IOException {
         //Start Server in port
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Server is listening on port " + port + " with " + (isRankMode? "rank" : "simple") + "mode");
+            System.out.println("Server is listening on port " + port + " with " + (isRankMode? "rank" : "simple") + " mode");
 
             //Start new connections thread
             while (true) {
@@ -144,24 +143,19 @@ public class Server {
 
 
     public static void main(String[] args) throws IOException {
-        //args: port numberPlayers mode  
-        if (args.length != 3) return;
-
-        //Create a Server Object
-        int port = Integer.parseInt(args[0]);
-
-        int playersPerGame = Integer.parseInt(args[1]);
-        
-        String mode = args[2];
-        boolean isRankMode;
-
-        if(mode.equals("rank") && mode.equals("simple") ){
-            isRankMode = mode.equals("rank");
+        // args: port numberPlayers mode  
+        if (args.length != 3) {
+            System.out.println("Usage: java Server <port> <numberPlayers> <mode>");
+            return;
         }
-        else return;
+
+        int port = Integer.parseInt(args[0]);
+        int playersPerGame = Integer.parseInt(args[1]);
+        String mode = args[2];
+        boolean isRankMode = mode.equalsIgnoreCase("rank");
 
         Server server = new Server(port, playersPerGame, isRankMode);
-
         server.startServer();
     }
+
 }
