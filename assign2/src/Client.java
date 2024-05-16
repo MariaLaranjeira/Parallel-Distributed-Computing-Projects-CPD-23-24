@@ -58,4 +58,22 @@ public class Client {
         this.rank = rank;
     }
 
+    public static void main(String[] args) {
+        if (args.length != 2) {
+            System.out.println("Usage: java Client <hostname> <serverPort>");
+            return;
+        }
+
+        String hostname = args[0];
+        int serverPort = Integer.parseInt(args[1]);
+
+        try {
+            Socket clientSocket = new Socket(hostname, serverPort);
+            Client client = new Client(clientSocket);
+            client.startClient();
+        } catch (IOException ex) {
+            System.out.println("Error connecting to server: " + ex.getMessage());
+        }
+    }
+
 }
