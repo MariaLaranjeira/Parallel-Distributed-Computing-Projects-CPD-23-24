@@ -16,6 +16,7 @@ public class Server {
     private Lock tokenLock;
 
     private final int TIMEOUT = 10000; // to avoid slow clients
+    private final int ALLOWED_DIFF = 5; // maximum rank difference match allowed
 
     public Server(int port, int playersPerGame, boolean isRankMode) {
         this.port = port;
@@ -136,6 +137,26 @@ public class Server {
         queueLock.lock();
         try {
             playersQueue.add(newPlayer);
+    
+            // Custom ranking matchmaking logic
+            if (playersQueue.size() >= playersPerGame) {
+                List<Client> potentialPlayers = new ArrayList<>();
+                Iterator<Client> iterator = playersQueue.iterator();
+                while (iterator.hasNext() && potentialPlayers.size() < playersPerGame) {
+                    Client player = iterator.next();
+                    if (Math.abs(player.getRank() - newPlayer.getRank()) <= ALLOWED_DIFF) {
+                        potentialPlayers.add(player);
+                        iterator.remove();
+                    }
+                }
+    
+                if (potentialPlayers.size() == playersPerGame) {
+                    startGame(potentialPlayers);
+                } else {
+                    // Re-add players back to the queue if a complete game cannot be formed
+                    playersQueue.addAll(potentialPlayers);
+                }
+            }
         } finally {
             queueLock.unlock();
         }

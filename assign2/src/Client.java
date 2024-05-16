@@ -6,8 +6,10 @@ public class Client {
     private int serverPort; 
     private String hostname; 
     private String token;
+    private float rank;
     
     public Client(Socket clientSocket) {
+        this.rank = 0;
         this.clientSocket = clientSocket;
     }
 
@@ -46,6 +48,14 @@ public class Client {
 
     public Socket getSocket(){
         return this.clientSocket;
+    }
+
+    public float getRank() {
+        return this.rank;
+    }
+
+    public void setLevel(float rank) {
+        this.rank = rank;
     }
 
 }
