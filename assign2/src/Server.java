@@ -53,7 +53,7 @@ public class Server {
         try {
             System.out.println("New connection received: " + clientSocket.getInetAddress());
             Client newPlayer = authenticate(clientSocket);
-
+            System.out.println("Passed Authentication");
             if (newPlayer != null) {
                 if (isRankMode) {
                     performRankedMatchmaking(newPlayer);
@@ -75,12 +75,15 @@ public class Server {
     }
 
     private Client authenticate(Socket clientSocket) throws IOException {
+        System.out.println("Authenticating...");
         BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
-
+        
         String token = reader.readLine();
+        System.out.println(token);
 
         tokenLock.lock();
+        
         try {
             if (token != null && tokenMap.containsKey(token)) {
                 return tokenMap.get(token);  

@@ -14,16 +14,18 @@ public class Client {
     }
 
     public void startClient() throws IOException {
-        try (Socket socket = new Socket(hostname, serverPort)) {
+        try {
             System.out.println("Starting client on port: " + serverPort);
 
-            socket.setSoTimeout(5000);  // Match the server's timeout
+            clientSocket.setSoTimeout(5000);  // Match the server's timeout
 
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
             // Send token if it exists, otherwise signal a new connection
-            out.println((token != null) ? token : "NEW");
+            String toSend = (token != null) ? token : "NEW";
+            System.out.println("Sending token: " + toSend);
+            out.println(toSend);
 
             // Read the token assigned by the server or the updated one
             token = in.readLine();
@@ -37,11 +39,10 @@ public class Client {
             }
 
         } catch (UnknownHostException ex) {
-
+            
             System.out.println("Server not found: " + ex.getMessage());
 
         } catch (IOException ex) {
-
             System.out.println("I/O error: " + ex.getMessage());
         }
     }
