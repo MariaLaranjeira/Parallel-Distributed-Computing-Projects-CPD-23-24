@@ -1,10 +1,11 @@
 import java.net.*;
+import java.util.Scanner;
 import java.io.*;
 
 public class Client {
     private final Socket clientSocket;
     private int serverPort; 
-    private String hostname; 
+    //private String hostname; 
     private String token;
     private float rank;
     
@@ -22,20 +23,37 @@ public class Client {
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-            // Send token if it exists, otherwise signal a new connection
-            String toSend = (token != null) ? token : "NEW";
-            System.out.println("Sending token: " + toSend);
-            out.println(toSend);
+            try ( Scanner scanner = new Scanner(System.in)) {
+                System.out.print("Enter username: ");
+                String username = scanner.nextLine();
+                System.out.print("Enter password: ");
+                String password = scanner.nextLine();
 
-            // Read the token assigned by the server or the updated one
-            token = in.readLine();
-            System.out.println("Connected with token: " + token);
+                // Send username and password to the server
+                out.println(username);
+                out.println(password);
+            }
 
-            // Continue with other communication
-            String fromServer;
-            while ((fromServer = in.readLine()) != null) {
-                System.out.println("Server: " + fromServer);
-                // !Include logic to handle game states and server messages
+            String response = in.readLine();
+            if ("AUTH_SUCCESS".equals(response)) {
+                System.out.println("Authentication successful");
+                // Send token if it exists, otherwise signal a new connection
+                String toSend = (token != null) ? token : "NEW";
+                System.out.println("Sending token: " + toSend);
+                out.println(toSend);
+
+                // Read the token assigned by the server or the updated one
+                token = in.readLine();
+                System.out.println("Connected with token: " + token);
+
+                // Continue with other communication
+                String fromServer;
+                while ((fromServer = in.readLine()) != null) {
+                    System.out.println("Server: " + fromServer);
+                    // Include logic to handle game states and server messages
+                }
+            } else {
+                System.out.println("Authentication failed: " + response);
             }
 
         } catch (UnknownHostException ex) {
