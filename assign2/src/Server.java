@@ -9,7 +9,7 @@ public class Server {
     private int playersPerGame;
     private Queue<Client> playersQueue;
     private Map<String, Client> tokenMap;
-    private Map<String, String> userCredentials; // Temporary -> must upgrade to file/db
+    private Map<String, String> userCredentials; // Temporary -> must upgrade to file
     private Lock queueLock;
     private Lock tokenLock;
     private final int TIMEOUT = 10000; // to avoid slow clients
@@ -46,23 +46,39 @@ public class Server {
     private void handleClient(Socket clientSocket) {
         try {
             System.out.println("New connection received: " + clientSocket.getInetAddress());
-            boolean authenticated = authenticate(clientSocket);
-            if (authenticated) {
-                Client newPlayer = authorize(clientSocket);
-                if (newPlayer != null) {
-                    if (isRankMode) {
-                        performRankedMatchmaking(newPlayer);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
+
+            String action = reader.readLine();
+            if ("LOGIN".equals(action)) {
+                if (authenticate(reader, writer)) {
+                    Client newPlayer = authorize(clientSocket);
+                    if (newPlayer != null) {
+                        handleMatchmaking(newPlayer);
                     } else {
-                        performSimpleMatchmaking(newPlayer);
+                        clientSocket.close();
                     }
                 } else {
+                    writer.println("AUTH_FAILED");
+                    clientSocket.close();
+                }
+            } else if ("REGISTER".equals(action)) {
+                if (register(reader, writer)) {
+                    Client newPlayer = authorize(clientSocket);
+                    if (newPlayer != null) {
+                        handleMatchmaking(newPlayer);
+                    } else {
+                        clientSocket.close();
+                    }
+                } else {
+                    writer.println("REGISTRATION_FAILED");
                     clientSocket.close();
                 }
             } else {
-                PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
-                writer.println("AUTH_FAILED");
+                writer.println("INVALID_ACTION");
                 clientSocket.close();
             }
+
         } catch (IOException e) {
             System.out.println("Error handling client socket: " + e.getMessage());
             e.printStackTrace();
@@ -74,16 +90,11 @@ public class Server {
         }
     }
 
-    private boolean authenticate(Socket clientSocket) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
-        
-        // Read username and password
+    private boolean authenticate(BufferedReader reader, PrintWriter writer) throws IOException {
         String username = reader.readLine();
         String password = reader.readLine();
         System.out.println("Received credentials: " + username + "/" + password);
 
-        // Check credentials
         if (username != null && password != null && password.equals(userCredentials.get(username))) {
             writer.println("AUTH_SUCCESS");
             return true;
@@ -93,11 +104,26 @@ public class Server {
         }
     }
 
+    private boolean register(BufferedReader reader, PrintWriter writer) throws IOException {
+        String username = reader.readLine();
+        String password = reader.readLine();
+        System.out.println("Received registration: " + username + "/" + password);
+
+        if (username != null && password != null && !userCredentials.containsKey(username)) {
+            userCredentials.put(username, password);
+            writer.println("REG_SUCCESS");
+            return true;
+        } else {
+            writer.println("REGISTRATION_FAILED");
+            return false;
+        }
+    }
+
     private Client authorize(Socket clientSocket) throws IOException {
         System.out.println("Authorizing...");
         BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
-        
+
         System.out.println("Waiting for token from client...");
         String token = reader.readLine();
         System.out.println("Received token: " + token);
@@ -118,6 +144,14 @@ public class Server {
             }
         } finally {
             tokenLock.unlock();
+        }
+    }
+
+    private void handleMatchmaking(Client newPlayer) {
+        if (isRankMode) {
+            performRankedMatchmaking(newPlayer);
+        } else {
+            performSimpleMatchmaking(newPlayer);
         }
     }
 
