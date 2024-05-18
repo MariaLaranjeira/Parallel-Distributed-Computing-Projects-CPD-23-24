@@ -20,28 +20,27 @@ public class Client {
 
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            Scanner scanner = new Scanner(System.in);
 
-            try (Scanner scanner = new Scanner(System.in)) {
-                System.out.print("Do you want to (1) Login or (2) Register? Enter 1 or 2: ");
-                String choice = scanner.nextLine();
-                if ("1".equals(choice)) {
-                    out.println("LOGIN");
-                } else if ("2".equals(choice)) {
-                    out.println("REGISTER");
-                } else {
-                    System.out.println("Invalid choice.");
-                    return;
-                }
-
-                System.out.print("Enter username: ");
-                String username = scanner.nextLine();
-                System.out.print("Enter password: ");
-                String password = scanner.nextLine();
-
-                // Send username and password to the server
-                out.println(username);
-                out.println(password);
+            System.out.print("Do you want to (1) Login or (2) Register? Enter 1 or 2: ");
+            String choice = scanner.nextLine();
+            if ("1".equals(choice)) {
+                out.println("LOGIN");
+            } else if ("2".equals(choice)) {
+                out.println("REGISTER");
+            } else {
+                System.out.println("Invalid choice.");
+                return;
             }
+
+            System.out.print("Enter username: ");
+            String username = scanner.nextLine();
+            System.out.print("Enter password: ");
+            String password = scanner.nextLine();
+
+            // Send username and password to the server
+            out.println(username);
+            out.println(password);
 
             String response = in.readLine();
             if ("AUTH_SUCCESS".equals(response) || "REG_SUCCESS".equals(response)) {
@@ -58,8 +57,13 @@ public class Client {
                 // Continue with other communication
                 String fromServer;
                 while ((fromServer = in.readLine()) != null) {
-                    System.out.println("Server: " + fromServer);
-                    // Include logic to handle game states and server messages
+                    if (fromServer.startsWith("Your Play:")) {
+                        System.out.print(fromServer);
+                        String guess = scanner.nextLine();
+                        out.println(guess);
+                    } else {
+                        System.out.println("Server: " + fromServer);
+                    }
                 }
             } else if ("USER_ALREADY_LOGGED_IN".equals(response)) {
                 System.out.println("User already logged in.");

@@ -222,9 +222,9 @@ public class Server {
         try {
             playersQueue.add(player);
             System.out.println("Player added to queue. Queue size: " + playersQueue.size());
-            if (playersQueue.size() >= playersPerGame) {
+            if (playersQueue.size() >= 2) {  // Start game when there are 2 players in the queue
                 List<Client> players = new ArrayList<>();
-                for (int i = 0; i < playersPerGame; i++) {
+                for (int i = 0; i < 2; i++) {
                     players.add(playersQueue.poll());
                     System.out.println("Player removed from waiting queue");
                 }
