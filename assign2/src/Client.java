@@ -16,7 +16,7 @@ public class Client {
         try {
             System.out.println("Starting client on port: " + clientSocket.getPort());
 
-            clientSocket.setSoTimeout(5000);  // Match the server's timeout
+            //clientSocket.setSoTimeout(5000);  // Match the server's timeout
 
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
