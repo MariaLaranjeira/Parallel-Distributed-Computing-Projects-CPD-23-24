@@ -61,6 +61,8 @@ public class Client {
                     System.out.println("Server: " + fromServer);
                     // Include logic to handle game states and server messages
                 }
+            } else if ("USER_ALREADY_LOGGED_IN".equals(response)) {
+                System.out.println("User already logged in.");
             } else {
                 System.out.println("Operation failed: " + response);
             }

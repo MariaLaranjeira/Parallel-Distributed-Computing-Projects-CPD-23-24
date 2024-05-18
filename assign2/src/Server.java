@@ -9,10 +9,13 @@ public class Server {
     private int playersPerGame;
     private Queue<Client> playersQueue;
     private Map<String, Client> tokenMap;
-    private Map<String, String> userCredentials; // Temporary -> must upgrade to file
+    private Map<String, String> userCredentials;
+    private Set<String> loggedInUsers;  // Track logged-in users
     private Lock queueLock;
     private Lock tokenLock;
+    private Lock loginLock;  // Lock for login operations
     private final int TIMEOUT = 10000; // to avoid slow clients
+    private final String credentialsFilePath = "../database/user_credentials.txt";
 
     public Server(int port, int playersPerGame, boolean isRankMode) {
         this.port = port;
@@ -20,12 +23,37 @@ public class Server {
         this.playersQueue = new LinkedList<>();
         this.tokenMap = new HashMap<>();
         this.userCredentials = new HashMap<>();
+        this.loggedInUsers = new HashSet<>();
         this.queueLock = new ReentrantLock();
         this.tokenLock = new ReentrantLock();
+        this.loginLock = new ReentrantLock();
 
-        // Test
-        userCredentials.put("gigi", "1234");
-        userCredentials.put("gerge", "4321");
+        // Load user credentials from file
+        loadUserCredentials();
+    }
+
+    private void loadUserCredentials() {
+        try (BufferedReader br = new BufferedReader(new FileReader(credentialsFilePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(":");
+                if (parts.length == 2) {
+                    userCredentials.put(parts[0], parts[1]);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Could not read credentials file: " + e.getMessage());
+        }
+    }
+
+    private void saveUserCredentials() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(credentialsFilePath))) {
+            for (Map.Entry<String, String> entry : userCredentials.entrySet()) {
+                pw.println(entry.getKey() + ":" + entry.getValue());
+            }
+        } catch (IOException e) {
+            System.out.println("Could not write to credentials file: " + e.getMessage());
+        }
     }
 
     public void startServer() {
@@ -33,7 +61,7 @@ public class Server {
             System.out.println("Server is listening on port " + port + " with " + (isRankMode ? "rank" : "simple") + " mode");
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                clientSocket.setSoTimeout(TIMEOUT);
+                //clientSocket.setSoTimeout(TIMEOUT);
                 System.out.println("Accepted connection from " + clientSocket.getInetAddress());
                 Thread.startVirtualThread(() -> handleClient(clientSocket));
             }
@@ -93,29 +121,54 @@ public class Server {
     private boolean authenticate(BufferedReader reader, PrintWriter writer) throws IOException {
         String username = reader.readLine();
         String password = reader.readLine();
-        System.out.println("Received credentials: " + username + "/" + password);
+        String hashedPassword = PasswordUtils.hashPassword(password);
+        System.out.println("Received credentials: " + username + "/" + hashedPassword);
 
-        if (username != null && password != null && password.equals(userCredentials.get(username))) {
-            writer.println("AUTH_SUCCESS");
-            return true;
-        } else {
-            writer.println("AUTH_FAILED");
-            return false;
+        loginLock.lock();
+        try {
+            if (loggedInUsers.contains(username)) {
+                writer.println("USER_ALREADY_LOGGED_IN");
+                return false;
+            }
+
+            if (username != null && password != null && hashedPassword.equals(userCredentials.get(username))) {
+                loggedInUsers.add(username);
+                writer.println("AUTH_SUCCESS");
+                return true;
+            } else {
+                writer.println("AUTH_FAILED");
+                return false;
+            }
+        } finally {
+            loginLock.unlock();
         }
     }
 
     private boolean register(BufferedReader reader, PrintWriter writer) throws IOException {
         String username = reader.readLine();
         String password = reader.readLine();
-        System.out.println("Received registration: " + username + "/" + password);
+        String hashedPassword = PasswordUtils.hashPassword(password);
+        System.out.println("Received registration: " + username + "/" + hashedPassword);
 
-        if (username != null && password != null && !userCredentials.containsKey(username)) {
-            userCredentials.put(username, password);
-            writer.println("REG_SUCCESS");
-            return true;
-        } else {
-            writer.println("REGISTRATION_FAILED");
-            return false;
+        loginLock.lock();
+        try {
+            if (loggedInUsers.contains(username)) {
+                writer.println("USER_ALREADY_LOGGED_IN");
+                return false;
+            }
+
+            if (username != null && password != null && !userCredentials.containsKey(username)) {
+                userCredentials.put(username, hashedPassword);
+                saveUserCredentials();  // Save credentials to file after registration
+                loggedInUsers.add(username);
+                writer.println("REG_SUCCESS");
+                return true;
+            } else {
+                writer.println("REGISTRATION_FAILED");
+                return false;
+            }
+        } finally {
+            loginLock.unlock();
         }
     }
 
