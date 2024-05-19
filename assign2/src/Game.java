@@ -11,14 +11,18 @@ public class Game implements Runnable {
     private UnoCard currentCard;
     private static final int INITIAL_HAND_SIZE = 5;
     private boolean gameRunning;
+    private Server server;
+    private List<Client> players;
 
-    public Game(List<Socket> userSockets) {
+    public Game(List<Socket> userSockets, List<Client> players, Server server) {
         this.userSockets = userSockets;
         this.playerHands = new HashMap<>();
         this.deck = initializeDeck();
         this.discardPile = new ArrayList<>();
         this.currentPlayerIndex = 0;
         this.gameRunning = true;
+        this.server = server;
+        this.players = players;
     }
 
     @Override
@@ -93,6 +97,7 @@ public class Game implements Runnable {
                 if (playerHand.isEmpty()) {
                     gameRunning = false;
                     broadcastMessage("Player " + (currentPlayerIndex + 1) + " wins the game!");
+                    server.updatePlayerRanks(getPlayerBySocket(currentPlayerSocket), players);
                     return;
                 }
             } else {
@@ -137,5 +142,14 @@ public class Game implements Runnable {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             out.println(message);
         }
+    }
+
+    private Client getPlayerBySocket(Socket socket) {
+        for (Client player : players) {
+            if (player.getSocket().equals(socket)) {
+                return player;
+            }
+        }
+        return null;
     }
 }

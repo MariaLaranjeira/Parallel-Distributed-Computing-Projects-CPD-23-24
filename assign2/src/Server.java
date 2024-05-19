@@ -16,10 +16,12 @@ public class Server {
     private Lock loginLock;  // Lock for login operations
     private final int TIMEOUT = 10000; // to avoid slow clients
     private final String credentialsFilePath = "../database/user_credentials.txt";
+    private final int RANK_DIFFERENCE_THRESHOLD = 2;
 
     public Server(int port, int playersPerGame, boolean isRankMode) {
         this.port = port;
         this.isRankMode = isRankMode;
+        this.playersPerGame = playersPerGame;
         this.playersQueue = new LinkedList<>();
         this.tokenMap = new HashMap<>();
         this.userCredentials = new HashMap<>();
@@ -37,8 +39,8 @@ public class Server {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(":");
-                if (parts.length == 2) {
-                    userCredentials.put(parts[0], parts[1]);
+                if (parts.length == 3) {  // Expecting format: username:hashedPassword:rank
+                    userCredentials.put(parts[0], parts[1] + ":" + parts[2]);
                 }
             }
         } catch (IOException e) {
@@ -82,6 +84,7 @@ public class Server {
                 if (authenticate(reader, writer)) {
                     Client newPlayer = authorize(clientSocket);
                     if (newPlayer != null) {
+                        writer.println(newPlayer.getRank());
                         handleMatchmaking(newPlayer);
                     } else {
                         clientSocket.close();
@@ -94,6 +97,7 @@ public class Server {
                 if (register(reader, writer)) {
                     Client newPlayer = authorize(clientSocket);
                     if (newPlayer != null) {
+                        writer.println(newPlayer.getRank());
                         handleMatchmaking(newPlayer);
                     } else {
                         clientSocket.close();
@@ -131,14 +135,17 @@ public class Server {
                 return false;
             }
 
-            if (username != null && password != null && hashedPassword.equals(userCredentials.get(username))) {
-                loggedInUsers.add(username);
-                writer.println("AUTH_SUCCESS");
-                return true;
-            } else {
-                writer.println("AUTH_FAILED");
-                return false;
+            String storedValue = userCredentials.get(username);
+            if (storedValue != null) {
+                String[] parts = storedValue.split(":");
+                if (parts.length == 2 && parts[0].equals(hashedPassword)) {
+                    loggedInUsers.add(username);
+                    writer.println("AUTH_SUCCESS");
+                    return true;
+                }
             }
+            writer.println("AUTH_FAILED");
+            return false;
         } finally {
             loginLock.unlock();
         }
@@ -158,7 +165,7 @@ public class Server {
             }
 
             if (username != null && password != null && !userCredentials.containsKey(username)) {
-                userCredentials.put(username, hashedPassword);
+                userCredentials.put(username, hashedPassword + ":0"); // Initialize rank to 0
                 saveUserCredentials();  // Save credentials to file after registration
                 loggedInUsers.add(username);
                 writer.println("REG_SUCCESS");
@@ -189,6 +196,10 @@ public class Server {
             } else {
                 System.out.println("No existing token, creating new client.");
                 Client newPlayer = new Client(clientSocket);
+                String username = getUsernameFromSocket(clientSocket);
+                if (username != null) {
+                    newPlayer.setRank(getRankByUsername(username));  // Assign the rank from the stored credentials
+                }
                 token = UUID.randomUUID().toString();
                 tokenMap.put(token, newPlayer);
                 writer.println(token);
@@ -198,6 +209,26 @@ public class Server {
         } finally {
             tokenLock.unlock();
         }
+    }
+
+    private String getUsernameFromSocket(Socket socket) {
+        for (Map.Entry<String, Client> entry : tokenMap.entrySet()) {
+            if (entry.getValue().getSocket().equals(socket)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    private int getRankByUsername(String username) {
+        String storedValue = userCredentials.get(username);
+        if (storedValue != null) {
+            String[] parts = storedValue.split(":");
+            if (parts.length == 2) {
+                return Integer.parseInt(parts[1]);
+            }
+        }
+        return 0;
     }
 
     private void handleMatchmaking(Client newPlayer) {
@@ -213,7 +244,7 @@ public class Server {
         for (Client player : players) {
             sockets.add(player.getSocket());
         }
-        Game game = new Game(sockets);
+        Game game = new Game(sockets, players, this);
         new Thread(game).start();
     }
 
@@ -222,9 +253,9 @@ public class Server {
         try {
             playersQueue.add(player);
             System.out.println("Player added to queue. Queue size: " + playersQueue.size());
-            if (playersQueue.size() >= 2) {  // Start game when there are 2 players in the queue
+            if (playersQueue.size() >= playersPerGame) {
                 List<Client> players = new ArrayList<>();
-                for (int i = 0; i < 2; i++) {
+                for (int i = 0; i < playersPerGame; i++) {
                     players.add(playersQueue.poll());
                     System.out.println("Player removed from waiting queue");
                 }
@@ -240,6 +271,17 @@ public class Server {
         try {
             playersQueue.add(newPlayer);
             System.out.println("Player added to ranked queue. Queue size: " + playersQueue.size());
+            
+            List<Client> match = new ArrayList<>();
+            for (Client player : playersQueue) {
+                if (match.size() < playersPerGame && Math.abs(player.getRank() - newPlayer.getRank()) <= RANK_DIFFERENCE_THRESHOLD) {
+                    match.add(player);
+                }
+            }
+            if (match.size() == playersPerGame) {
+                playersQueue.removeAll(match);
+                startGame(match);
+            }
         } finally {
             queueLock.unlock();
         }
@@ -256,5 +298,30 @@ public class Server {
         boolean isRankMode = mode.equalsIgnoreCase("rank");
         Server server = new Server(port, playersPerGame, isRankMode);
         server.startServer();
+    }
+
+    public void updatePlayerRanks(Client winner, List<Client> players) {
+        winner.setRank(winner.getRank() + 1);
+        for (Client player : players) {
+            if (player != winner) {
+                player.setRank(player.getRank() - 1);
+            }
+        }
+        // Save updated ranks to the credentials file
+        for (Client player : players) {
+            String username = getUsernameFromSocket(player.getSocket());
+            if (username != null) {
+                String storedValue = userCredentials.get(username);
+                if (storedValue != null) {
+                    String hashedPassword = storedValue.split(":")[0];
+                    userCredentials.put(username, hashedPassword + ":" + player.getRank());
+                } else {
+                    System.out.println("Error: No stored value found for username " + username);
+                }
+            } else {
+                System.out.println("Error: Username not found for player with socket " + player.getSocket());
+            }
+        }
+        saveUserCredentials();
     }
 }

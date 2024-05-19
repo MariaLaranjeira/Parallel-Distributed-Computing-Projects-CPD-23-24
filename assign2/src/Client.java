@@ -5,10 +5,10 @@ import java.io.*;
 public class Client {
     private final Socket clientSocket;
     private String token;
-    private float rank;
+    private int rank;
 
     public Client(Socket clientSocket) {
-        this.rank = 0;
+        this.rank = 0; // Initialize rank to 0
         this.clientSocket = clientSocket;
     }
 
@@ -54,6 +54,10 @@ public class Client {
                 token = in.readLine();
                 System.out.println("Connected with token: " + token);
 
+                // Read the rank assigned by the server
+                rank = Integer.parseInt(in.readLine());
+                System.out.println("Your rank is: " + rank);
+
                 // Continue with other communication
                 String fromServer;
                 while ((fromServer = in.readLine()) != null) {
@@ -82,11 +86,11 @@ public class Client {
         return this.clientSocket;
     }
 
-    public float getRank() {
+    public int getRank() {
         return this.rank;
     }
 
-    public void setLevel(float rank) {
+    public void setRank(int rank) {
         this.rank = rank;
     }
 
