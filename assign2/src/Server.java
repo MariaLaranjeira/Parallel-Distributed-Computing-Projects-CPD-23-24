@@ -239,7 +239,7 @@ public class Server {
         for (Client player : players) {
             sockets.add(player.getSocket());
         }
-        Game game = new Game(sockets, players, this);
+        Game game = new Game(sockets, players, this, isRankMode);
         new Thread(game).start();
     }
 
@@ -296,29 +296,31 @@ public class Server {
     }
 
     public void updatePlayerRanks(Client winner, List<Client> players) {
-        winner.setRank(winner.getRank() + 1);
-        for (Client player : players) {
-            if (player != winner) {
-                player.setRank(player.getRank() - 1);
-            }
-        }
-        // Save updated ranks to the credentials file
-        for (Client player : players) {
-            String token = getTokenBySocket(player.getSocket());
-            String username = tokenToUsernameMap.get(token);
-            if (username != null) {
-                String storedValue = userCredentials.get(username);
-                if (storedValue != null) {
-                    String hashedPassword = storedValue.split(":")[0];
-                    userCredentials.put(username, hashedPassword + ":" + player.getRank());
-                } else {
-                    System.out.println("Error: No stored value found for username " + username);
+        if (isRankMode) {  // Only update ranks in ranked mode
+            winner.setRank(winner.getRank() + 1);
+            for (Client player : players) {
+                if (player != winner) {
+                    player.setRank(player.getRank() - 1);
                 }
-            } else {
-                System.out.println("Error: Username not found for player with socket " + player.getSocket());
             }
+            // Save updated ranks to the credentials file
+            for (Client player : players) {
+                String token = getTokenBySocket(player.getSocket());
+                String username = tokenToUsernameMap.get(token);
+                if (username != null) {
+                    String storedValue = userCredentials.get(username);
+                    if (storedValue != null) {
+                        String hashedPassword = storedValue.split(":")[0];
+                        userCredentials.put(username, hashedPassword + ":" + player.getRank());
+                    } else {
+                        System.out.println("Error: No stored value found for username " + username);
+                    }
+                } else {
+                    System.out.println("Error: Username not found for player with socket " + player.getSocket());
+                }
+            }
+            saveUserCredentials();
         }
-        saveUserCredentials();
     }
 
     private String getTokenBySocket(Socket socket) {
