@@ -108,6 +108,13 @@ public class Server {
                     writer.println("REGISTRATION_FAILED");
                     clientSocket.close();
                 }
+            } else if ("RECONNECT".equals(action)) {
+                if (reconnect(reader, writer, clientSocket)) {
+                    writer.println("RECONNECT_SUCCESS");
+                } else {
+                    writer.println("RECONNECT_FAILED");
+                    clientSocket.close();
+                }
             } else {
                 writer.println("INVALID_ACTION");
                 clientSocket.close();
@@ -181,6 +188,32 @@ public class Server {
         }
     }
 
+    private boolean reconnect(BufferedReader reader, PrintWriter writer, Socket clientSocket) throws IOException {
+        String username = reader.readLine();
+        String token = reader.readLine();
+
+        System.out.println("Reconnecting user: " + username + " with token: " + token);
+
+        tokenLock.lock();
+        try {
+            if (tokenMap.containsKey(token)) {
+                Client client = tokenMap.get(token);
+                client.setSocket(clientSocket);  // Update the socket with the new connection
+                loggedInUsers.add(username);
+                writer.println("RECONNECT_SUCCESS");
+                writer.println(client.getRank());
+                System.out.println("User " + username + " reconnected successfully.");
+                return true;
+            } else {
+                writer.println("RECONNECT_FAILED");
+                System.out.println("Reconnection failed for user " + username + " with token " + token);
+                return false;
+            }
+        } finally {
+            tokenLock.unlock();
+        }
+    }
+
     private Client authorize(Socket clientSocket, BufferedReader reader) throws IOException {
         System.out.println("Authorizing...");
         PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
@@ -197,8 +230,10 @@ public class Server {
         try {
             if (token != null && tokenMap.containsKey(token)) {
                 System.out.println("Existing token found, returning associated client.");
+                Client client = tokenMap.get(token);
+                client.setSocket(clientSocket);  // Update the socket with the new connection
                 tokenToUsernameMap.put(token, username);  // Map the token to the username
-                return tokenMap.get(token);
+                return client;
             } else {
                 System.out.println("No existing token, creating new client.");
                 Client newPlayer = new Client(clientSocket);
@@ -246,8 +281,10 @@ public class Server {
     private void performSimpleMatchmaking(Client player) {
         queueLock.lock();
         try {
-            playersQueue.add(player);
-            System.out.println("Player added to queue. Queue size: " + playersQueue.size());
+            if (!playersQueue.contains(player)) {  // Add player to queue if not already present
+                playersQueue.add(player);
+                System.out.println("Player added to queue. Queue size: " + playersQueue.size());
+            }
             if (playersQueue.size() >= playersPerGame) {
                 List<Client> players = new ArrayList<>();
                 for (int i = 0; i < playersPerGame; i++) {
@@ -264,8 +301,10 @@ public class Server {
     private void performRankedMatchmaking(Client newPlayer) {
         queueLock.lock();
         try {
-            playersQueue.add(newPlayer);
-            System.out.println("Player added to ranked queue. Queue size: " + playersQueue.size());
+            if (!playersQueue.contains(newPlayer)) {  // Add player to queue if not already present
+                playersQueue.add(newPlayer);
+                System.out.println("Player added to ranked queue. Queue size: " + playersQueue.size());
+            }
             
             List<Client> match = new ArrayList<>();
             for (Client player : playersQueue) {
