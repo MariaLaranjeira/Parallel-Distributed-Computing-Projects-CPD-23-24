@@ -10,6 +10,7 @@ public class Server {
     private Queue<Client> playersQueue;
     private Map<String, Client> tokenMap;
     private Map<String, String> userCredentials;
+    private Map<String, String> tokenToUsernameMap; // Map to store token to username mapping
     private Set<String> loggedInUsers;  // Track logged-in users
     private Lock queueLock;
     private Lock tokenLock;
@@ -25,6 +26,7 @@ public class Server {
         this.playersQueue = new LinkedList<>();
         this.tokenMap = new HashMap<>();
         this.userCredentials = new HashMap<>();
+        this.tokenToUsernameMap = new HashMap<>(); // Initialize the map
         this.loggedInUsers = new HashSet<>();
         this.queueLock = new ReentrantLock();
         this.tokenLock = new ReentrantLock();
@@ -82,7 +84,7 @@ public class Server {
             String action = reader.readLine();
             if ("LOGIN".equals(action)) {
                 if (authenticate(reader, writer)) {
-                    Client newPlayer = authorize(clientSocket);
+                    Client newPlayer = authorize(clientSocket, reader);
                     if (newPlayer != null) {
                         writer.println(newPlayer.getRank());
                         handleMatchmaking(newPlayer);
@@ -95,7 +97,7 @@ public class Server {
                 }
             } else if ("REGISTER".equals(action)) {
                 if (register(reader, writer)) {
-                    Client newPlayer = authorize(clientSocket);
+                    Client newPlayer = authorize(clientSocket, reader);
                     if (newPlayer != null) {
                         writer.println(newPlayer.getRank());
                         handleMatchmaking(newPlayer);
@@ -179,10 +181,13 @@ public class Server {
         }
     }
 
-    private Client authorize(Socket clientSocket) throws IOException {
+    private Client authorize(Socket clientSocket, BufferedReader reader) throws IOException {
         System.out.println("Authorizing...");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
+
+        System.out.println("Waiting for username from client...");
+        String username = reader.readLine();
+        System.out.println("Received username: " + username);
 
         System.out.println("Waiting for token from client...");
         String token = reader.readLine();
@@ -192,16 +197,15 @@ public class Server {
         try {
             if (token != null && tokenMap.containsKey(token)) {
                 System.out.println("Existing token found, returning associated client.");
+                tokenToUsernameMap.put(token, username);  // Map the token to the username
                 return tokenMap.get(token);
             } else {
                 System.out.println("No existing token, creating new client.");
                 Client newPlayer = new Client(clientSocket);
-                String username = getUsernameFromSocket(clientSocket);
-                if (username != null) {
-                    newPlayer.setRank(getRankByUsername(username));  // Assign the rank from the stored credentials
-                }
+                newPlayer.setRank(getRankByUsername(username));  // Assign the rank from the stored credentials
                 token = UUID.randomUUID().toString();
                 tokenMap.put(token, newPlayer);
+                tokenToUsernameMap.put(token, username);  // Map the token to the username
                 writer.println(token);
                 System.out.println("New token assigned: " + token);
                 return newPlayer;
@@ -209,15 +213,6 @@ public class Server {
         } finally {
             tokenLock.unlock();
         }
-    }
-
-    private String getUsernameFromSocket(Socket socket) {
-        for (Map.Entry<String, Client> entry : tokenMap.entrySet()) {
-            if (entry.getValue().getSocket().equals(socket)) {
-                return entry.getKey();
-            }
-        }
-        return null;
     }
 
     private int getRankByUsername(String username) {
@@ -309,7 +304,8 @@ public class Server {
         }
         // Save updated ranks to the credentials file
         for (Client player : players) {
-            String username = getUsernameFromSocket(player.getSocket());
+            String token = getTokenBySocket(player.getSocket());
+            String username = tokenToUsernameMap.get(token);
             if (username != null) {
                 String storedValue = userCredentials.get(username);
                 if (storedValue != null) {
@@ -323,5 +319,14 @@ public class Server {
             }
         }
         saveUserCredentials();
+    }
+
+    private String getTokenBySocket(Socket socket) {
+        for (Map.Entry<String, Client> entry : tokenMap.entrySet()) {
+            if (entry.getValue().getSocket().equals(socket)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

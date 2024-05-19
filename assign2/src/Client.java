@@ -45,9 +45,10 @@ public class Client {
             String response = in.readLine();
             if ("AUTH_SUCCESS".equals(response) || "REG_SUCCESS".equals(response)) {
                 System.out.println(response.equals("AUTH_SUCCESS") ? "Authentication successful" : "Registration successful");
-                // Send token if it exists, otherwise signal a new connection
+                // Send username and token if it exists, otherwise signal a new connection
                 String toSend = (token != null) ? token : "NEW";
-                System.out.println("Sending token: " + toSend);
+                System.out.println("Sending username and token: " + username + " " + toSend);
+                out.println(username);
                 out.println(toSend);
 
                 // Read the token assigned by the server or the updated one

@@ -80,6 +80,12 @@ public class Game implements Runnable {
         String play = in.readLine();
         if (play.equals("DECK")) {
             drawCard(currentPlayerSocket);
+        } else if (play.equals("WIN_DEBUG")) {
+            // Debug option to instantly win the game
+            gameRunning = false;
+            broadcastMessage("Player " + (currentPlayerIndex + 1) + " wins the game (DEBUG)!");
+            server.updatePlayerRanks(getPlayerBySocket(currentPlayerSocket), players);
+            return;
         } else {
             UnoCard playedCard = getCardFromPlay(play);
             if (currentCard == null || isValidPlay(playedCard)) {
