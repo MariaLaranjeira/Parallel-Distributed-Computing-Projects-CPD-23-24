@@ -159,14 +159,10 @@ public class Client {
             Client client = new Client(clientSocket);
             client.startClient();
 
-            // Simulate client disconnection and reconnection
-            Thread.sleep(10000); // Wait for 10 seconds before reconnecting
             client.reconnectToServer();
 
         } catch (IOException ex) {
             System.out.println("Error connecting to server: " + ex.getMessage());
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
     }
 }
