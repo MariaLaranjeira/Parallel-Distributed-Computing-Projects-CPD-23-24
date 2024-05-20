@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.*;
 
+
 public class Game implements Runnable {
     private List<Socket> userSockets;
     private Map<Socket, List<UnoCard>> playerHands;
@@ -90,6 +91,10 @@ public class Game implements Runnable {
             return;
         } else {
             UnoCard playedCard = getCardFromPlay(play);
+            if (playedCard == null || !isValidCard(play)) {
+                out.println("Invalid play! Try again.");
+                return;
+            }
             if (currentCard == null || isValidPlay(playedCard)) {
                 currentCard = playedCard;
                 discardPile.add(playedCard);
@@ -117,12 +122,19 @@ public class Game implements Runnable {
         currentPlayerIndex = (currentPlayerIndex + 1) % userSockets.size();
     }
 
+    private boolean isValidCard(String play) {
+        return play.matches("[RYGB]_[0123456789]");
+    }
+
     private boolean isValidPlay(UnoCard playedCard) {
         return playedCard.getColor().equals(currentCard.getColor()) || playedCard.getValue().equals(currentCard.getValue());
     }
 
     private UnoCard getCardFromPlay(String play) {
         String[] parts = play.split("_");
+        if (parts.length != 2) {
+            return null;
+        }
         return new UnoCard(parts[0], parts[1]);
     }
 

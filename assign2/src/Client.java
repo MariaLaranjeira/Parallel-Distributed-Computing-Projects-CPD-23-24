@@ -26,7 +26,7 @@ public class Client {
     private void connectToServer() throws IOException {
         System.out.println("Starting client on port: " + clientSocket.getPort());
 
-        //clientSocket.setSoTimeout(5000);  // Match the server's timeout
+        clientSocket.setSoTimeout(30000);  
 
         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
@@ -66,24 +66,33 @@ public class Client {
             System.out.println("Connected with token: " + token);
 
             // Read the rank assigned by the server
-            rank = Integer.parseInt(in.readLine());
-            System.out.println("Your rank is: " + rank);
+            String rankResponse = in.readLine();
+            try {
+                rank = Integer.parseInt(rankResponse);
+                System.out.println("Your rank is: " + rank);
+            } catch (NumberFormatException e) {
+                System.out.println("Unexpected response: " + rankResponse);
+            }
 
             // Continue with other communication
-            String fromServer;
-            while ((fromServer = in.readLine()) != null) {
-                if (fromServer.startsWith("Your Play:")) {
-                    System.out.print(fromServer);
-                    String guess = scanner.nextLine();
-                    out.println(guess);
-                } else {
-                    System.out.println("Server: " + fromServer);
-                }
-            }
+            handleServerMessages(in, scanner, out);
         } else if ("USER_ALREADY_LOGGED_IN".equals(response)) {
             System.out.println("User already logged in.");
         } else {
             System.out.println("Operation failed: " + response);
+        }
+    }
+
+    private void handleServerMessages(BufferedReader in, Scanner scanner, PrintWriter out) throws IOException {
+        String fromServer;
+        while ((fromServer = in.readLine()) != null) {
+            if (fromServer.startsWith("Your Play:")) {
+                System.out.print(fromServer);
+                String guess = scanner.nextLine();
+                out.println(guess);
+            } else {
+                System.out.println("Server: " + fromServer);
+            }
         }
     }
 
@@ -106,21 +115,16 @@ public class Client {
                 System.out.println("Reconnected successfully.");
 
                 // Read the rank assigned by the server
-                rank = Integer.parseInt(in.readLine());
-                System.out.println("Your rank is: " + rank);
+                String rankResponse = in.readLine();
+                try {
+                    rank = Integer.parseInt(rankResponse);
+                    System.out.println("Your rank is: " + rank);
+                } catch (NumberFormatException e) {
+                    System.out.println("Unexpected response: " + rankResponse);
+                }
 
                 // Continue with other communication
-                String fromServer;
-                Scanner scanner = new Scanner(System.in);
-                while ((fromServer = in.readLine()) != null) {
-                    if (fromServer.startsWith("Your Play:")) {
-                        System.out.print(fromServer);
-                        String guess = scanner.nextLine();
-                        out.println(guess);
-                    } else {
-                        System.out.println("Server: " + fromServer);
-                    }
-                }
+                handleServerMessages(in, new Scanner(System.in), out);
             } else {
                 System.out.println("Reconnection failed: " + response);
             }
@@ -159,10 +163,11 @@ public class Client {
             Client client = new Client(clientSocket);
             client.startClient();
 
+            // Simulate client disconnection and reconnection
             client.reconnectToServer();
 
         } catch (IOException ex) {
             System.out.println("Error connecting to server: " + ex.getMessage());
-        }
+        } 
     }
 }

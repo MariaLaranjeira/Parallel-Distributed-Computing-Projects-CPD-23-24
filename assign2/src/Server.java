@@ -15,9 +15,12 @@ public class Server {
     private Lock queueLock;
     private Lock tokenLock;
     private Lock loginLock;  // Lock for login operations
-    private final int TIMEOUT = 10000; // to avoid slow clients
+    private final int TIMEOUT = 30000; // to avoid slow clients
     private final String credentialsFilePath = "../database/user_credentials.txt";
-    private final int RANK_DIFFERENCE_THRESHOLD = 2;
+    private int rankDifferenceThreshold = 2; // Initial threshold
+    private final int maxRankDifferenceThreshold = 10; // Maximum allowed difference
+    private final int thresholdIncreaseInterval = 10000; // Increase interval in milliseconds
+    private boolean gameRunning;
 
     public Server(int port, int playersPerGame, boolean isRankMode) {
         this.port = port;
@@ -31,9 +34,15 @@ public class Server {
         this.queueLock = new ReentrantLock();
         this.tokenLock = new ReentrantLock();
         this.loginLock = new ReentrantLock();
+        this.gameRunning = false;
 
         // Load user credentials from file
         loadUserCredentials();
+
+        // Start the rank difference relaxation thread if in rank mode
+        if (isRankMode) {
+            startRankDifferenceRelaxation();
+        }
     }
 
     private void loadUserCredentials() {
@@ -65,7 +74,7 @@ public class Server {
             System.out.println("Server is listening on port " + port + " with " + (isRankMode ? "rank" : "simple") + " mode");
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                //clientSocket.setSoTimeout(TIMEOUT);
+                clientSocket.setSoTimeout(TIMEOUT);
                 System.out.println("Accepted connection from " + clientSocket.getInetAddress());
                 Thread.startVirtualThread(() -> handleClient(clientSocket));
             }
@@ -88,6 +97,7 @@ public class Server {
                     if (newPlayer != null) {
                         writer.println(newPlayer.getRank());
                         handleMatchmaking(newPlayer);
+                        waitForClientDisconnection(clientSocket, newPlayer);  // Monitor client disconnection
                     } else {
                         clientSocket.close();
                     }
@@ -101,6 +111,7 @@ public class Server {
                     if (newPlayer != null) {
                         writer.println(newPlayer.getRank());
                         handleMatchmaking(newPlayer);
+                        waitForClientDisconnection(clientSocket, newPlayer);  // Monitor client disconnection
                     } else {
                         clientSocket.close();
                     }
@@ -111,6 +122,8 @@ public class Server {
             } else if ("RECONNECT".equals(action)) {
                 if (reconnect(reader, writer, clientSocket)) {
                     writer.println("RECONNECT_SUCCESS");
+                    handleReconnectionMatchmaking(writer, clientSocket);
+                    waitForClientDisconnection(clientSocket, tokenMap.get(getTokenBySocket(clientSocket)));  // Monitor client disconnection
                 } else {
                     writer.println("RECONNECT_FAILED");
                     clientSocket.close();
@@ -127,6 +140,39 @@ public class Server {
                 clientSocket.close();
             } catch (IOException ex) {
                 System.out.println("Failed to close client socket: " + ex.getMessage());
+            }
+        }
+    }
+
+    private void waitForClientDisconnection(Socket clientSocket, Client client) {
+        Thread.startVirtualThread(() -> {
+            try {
+                clientSocket.getInputStream().read();
+            } catch (IOException e) {
+                handleClientDisconnection(client);
+            }
+        });
+    }
+
+    private void handleClientDisconnection(Client client) {
+        String token = getTokenBySocket(client.getSocket());
+        String username = tokenToUsernameMap.get(token);
+
+        if (username != null) {
+            loginLock.lock();
+            try {
+                loggedInUsers.remove(username);
+                System.out.println("User " + username + " removed from logged-in users due to disconnection.");
+            } finally {
+                loginLock.unlock();
+            }
+
+            queueLock.lock();
+            try {
+                playersQueue.remove(client);
+                System.out.println("User " + username + " removed from the queue due to disconnection.");
+            } finally {
+                queueLock.unlock();
             }
         }
     }
@@ -269,13 +315,27 @@ public class Server {
         }
     }
 
+    private void handleReconnectionMatchmaking(PrintWriter writer, Socket clientSocket) {
+        tokenLock.lock();
+        try {
+            String token = getTokenBySocket(clientSocket);
+            Client client = tokenMap.get(token);
+            if (client != null) {
+                handleMatchmaking(client);
+            }
+        } finally {
+            tokenLock.unlock();
+        }
+    }
+
     private void startGame(List<Client> players) {
+        gameRunning = true;
         List<Socket> sockets = new ArrayList<>();
         for (Client player : players) {
             sockets.add(player.getSocket());
         }
         Game game = new Game(sockets, players, this, isRankMode);
-        new Thread(game).start();
+        Thread.startVirtualThread(game);
     }
 
     private void performSimpleMatchmaking(Client player) {
@@ -305,16 +365,61 @@ public class Server {
                 playersQueue.add(newPlayer);
                 System.out.println("Player added to ranked queue. Queue size: " + playersQueue.size());
             }
-            
+
             List<Client> match = new ArrayList<>();
             for (Client player : playersQueue) {
-                if (match.size() < playersPerGame && Math.abs(player.getRank() - newPlayer.getRank()) <= RANK_DIFFERENCE_THRESHOLD) {
+                if (match.size() < playersPerGame && Math.abs(player.getRank() - newPlayer.getRank()) <= rankDifferenceThreshold) {
                     match.add(player);
                 }
             }
             if (match.size() == playersPerGame) {
                 playersQueue.removeAll(match);
                 startGame(match);
+            }
+        } finally {
+            queueLock.unlock();
+        }
+    }
+
+    private void startRankDifferenceRelaxation() {
+        Thread.startVirtualThread(() -> {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    queueLock.lock();
+                    try {
+                        if (playersQueue.size() >= playersPerGame && !gameRunning) {
+                            while (rankDifferenceThreshold < maxRankDifferenceThreshold && !gameRunning) {
+                                Thread.sleep(thresholdIncreaseInterval);
+                                rankDifferenceThreshold++;
+                                System.out.println("Rank difference threshold increased to: " + rankDifferenceThreshold);
+                                retryMatchmaking(); // Retry matchmaking with the new threshold
+                            }
+                            if (gameRunning) {
+                                // Reset the threshold and wait until the game is over to restart the relaxation
+                                rankDifferenceThreshold = 2;
+                                while (gameRunning) {
+                                    Thread.sleep(thresholdIncreaseInterval);
+                                }
+                            }
+                        }
+                    } finally {
+                        queueLock.unlock();
+                    }
+                }
+            } catch (InterruptedException e) {
+                System.out.println("Rank difference relaxation thread interrupted: " + e.getMessage());
+            }
+        });
+    }
+
+    private void retryMatchmaking() {
+        queueLock.lock();
+        try {
+            Queue<Client> tempQueue = new LinkedList<>(playersQueue);
+            playersQueue.clear();
+            while (!tempQueue.isEmpty()) {
+                Client player = tempQueue.poll();
+                handleMatchmaking(player);
             }
         } finally {
             queueLock.unlock();
@@ -360,6 +465,7 @@ public class Server {
             }
             saveUserCredentials();
         }
+        gameRunning = false; // Mark the game as not running anymore
     }
 
     private String getTokenBySocket(Socket socket) {
