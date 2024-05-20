@@ -14,9 +14,9 @@ public class Game implements Runnable {
     private boolean gameRunning;
     private Server server;
     private List<Client> players;
-    private boolean isRankMode;  // Add isRankMode field
+    private boolean isRankMode; 
 
-    public Game(List<Socket> userSockets, List<Client> players, Server server, boolean isRankMode) {  // Add isRankMode parameter
+    public Game(List<Socket> userSockets, List<Client> players, Server server, boolean isRankMode) {  
         this.userSockets = userSockets;
         this.playerHands = new HashMap<>();
         this.deck = initializeDeck();
@@ -25,7 +25,7 @@ public class Game implements Runnable {
         this.gameRunning = true;
         this.server = server;
         this.players = players;
-        this.isRankMode = isRankMode;  // Initialize isRankMode field
+        this.isRankMode = isRankMode; 
     }
 
     @Override
